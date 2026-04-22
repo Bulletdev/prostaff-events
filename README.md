@@ -365,12 +365,10 @@ graph TB
 **For prostaff-events app:**
 
 ```bash
-REDIS_URL=redis://default:<password>@redis:6379/0
+REDIS_PASSWORD=<same password already set in prostaff-api>
 INTERNAL_JWT_SECRET=<same value as prostaff-api>
 SECRET_KEY_BASE=<64+ char random string — mix phx.gen.secret>
-RAILS_API_URL=http://api:3000
-PHX_HOST=events.prostaff.gg
-SCRAPER_API_KEY=<optional>
+# RAILS_API_URL and PHX_HOST have sane defaults, override if needed
 ```
 
 **For prostaff-api app (add these two):**
@@ -391,11 +389,11 @@ PHOENIX_EVENTS_URL=http://events:4000
 ╔════════════════════════╦══════════╦══════════════════════════════════════════╗
 ║  Variable              ║  Required║  Description                             ║
 ╠════════════════════════╬══════════╬══════════════════════════════════════════╣
-║  REDIS_URL             ║  yes     ║  Shared Redis (same as Rails API)        ║
+║  REDIS_PASSWORD        ║  yes     ║  Redis password (same as prostaff-api)   ║
 ║  INTERNAL_JWT_SECRET   ║  yes     ║  Must match prostaff-api value           ║
 ║  SECRET_KEY_BASE       ║  yes     ║  Phoenix secret (min 64 chars)           ║
-║  RAILS_API_URL         ║  yes     ║  Internal Rails URL (http://api:3000)    ║
-║  PHX_HOST              ║  yes     ║  Public hostname (events.prostaff.gg)    ║
+║  RAILS_API_URL         ║  no      ║  Internal Rails URL (default: api:3000)  ║
+║  PHX_HOST              ║  no      ║  Public hostname (default: events.p.gg)  ║
 ║  PORT                  ║  no      ║  HTTP port (default: 4000)               ║
 ║  SCRAPER_API_KEY       ║  no      ║  API key for POST /events/notify         ║
 ╚════════════════════════╩══════════╩══════════════════════════════════════════╝

@@ -9,7 +9,8 @@ services:
       MIX_ENV: prod
       PORT: '4000'
       PHX_HOST: '${PHX_HOST:-events.prostaff.gg}'
-      REDIS_URL: '${REDIS_URL:?required}'
+      # Built from REDIS_PASSWORD — same pattern as prostaff-api, host resolves via coolify network
+      REDIS_URL: 'redis://default:${REDIS_PASSWORD}@redis:6379/0'
       INTERNAL_JWT_SECRET: '${INTERNAL_JWT_SECRET:?required}'
       SECRET_KEY_BASE: '${SECRET_KEY_BASE:?required}'
       # Internal URL of the Rails API within the Coolify network

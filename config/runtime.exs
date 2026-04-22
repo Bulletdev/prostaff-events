@@ -3,7 +3,14 @@ import Config
 # All secrets and environment-specific config are read at runtime.
 # This allows the same Docker image to run in dev/staging/prod.
 
-redis_url = System.get_env("REDIS_URL") || "redis://localhost:6379/0"
+redis_url =
+  case System.get_env("REDIS_URL") do
+    nil -> "redis://localhost:6379/0"
+    "" -> "redis://localhost:6379/0"
+    url ->
+      # Defend against a missing scheme — Coolify sometimes strips it
+      if String.contains?(url, "://"), do: url, else: "redis://#{url}"
+  end
 
 # Phoenix.PubSub with Redis adapter for multi-node support and Rails integration.
 # Rails publishes to: prostaff:events:<org_id>
