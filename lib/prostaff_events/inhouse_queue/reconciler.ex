@@ -40,7 +40,7 @@ defmodule ProstaffEvents.InhouseQueue.Reconciler do
     rails_url = Application.get_env(:prostaff_events, :rails_api_url)
     token = generate_internal_token()
 
-    case Req.get("#{rails_url}/api/v1/internal/inhouse_queues/active",
+    case Req.get("#{rails_url}/internal/api/inhouse_queues/active",
            headers: [{"authorization", "Bearer #{token}"}],
            receive_timeout: 5_000
          ) do
