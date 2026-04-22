@@ -1,0 +1,52 @@
+services:
+  events:
+    build: .
+    expose:
+      - "4000"
+    networks:
+      - coolify
+    environment:
+      MIX_ENV: prod
+      PORT: '4000'
+      PHX_HOST: '${PHX_HOST:-events.prostaff.gg}'
+      REDIS_URL: '${REDIS_URL:?required}'
+      INTERNAL_JWT_SECRET: '${INTERNAL_JWT_SECRET:?required}'
+      SECRET_KEY_BASE: '${SECRET_KEY_BASE:?required}'
+      # Internal URL of the Rails API within the Coolify network
+      RAILS_API_URL: '${RAILS_API_URL:-http://api:3000}'
+      SCRAPER_API_KEY: '${SCRAPER_API_KEY:-}'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      - coolify.managed=true
+      - coolify.type=application
+
+      # Traefik — HTTPS router
+      - traefik.enable=true
+      - traefik.http.routers.prostaff-events.rule=Host(`events.prostaff.gg`)
+      - traefik.http.routers.prostaff-events.entrypoints=https
+      - traefik.http.routers.prostaff-events.tls=true
+      - traefik.http.routers.prostaff-events.tls.certresolver=letsencrypt
+
+      # Service
+      - traefik.http.services.prostaff-events.loadbalancer.server.port=4000
+      - traefik.http.services.prostaff-events.loadbalancer.server.scheme=http
+
+      # HTTP to HTTPS redirect
+      - traefik.http.middlewares.events-redirect-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.events-redirect-https.redirectscheme.permanent=true
+      - traefik.http.routers.prostaff-events-http.rule=Host(`events.prostaff.gg`)
+      - traefik.http.routers.prostaff-events-http.entrypoints=http
+      - traefik.http.routers.prostaff-events-http.middlewares=events-redirect-https
+      - traefik.http.routers.prostaff-events-http.service=prostaff-events
+
+      - traefik.docker.network=coolify
+
+networks:
+  coolify:
+    external: true
