@@ -61,6 +61,12 @@ defmodule ProstaffEventsWeb.InhouseChannelTest do
       assert_reply ref, :error, %{reason: "rate_limited"}
     end
 
+    test "sai da queue com sucesso", %{socket: socket} do
+      push(socket, "join_queue", %{"player_id" => "player-leave", "role" => "top"})
+      ref = push(socket, "checkin", %{"player_id" => "player-leave"})
+      assert_reply ref, :error, %{reason: "not_in_check_in_phase"}
+    end
+
     test "retorna erro quando queue está em check_in (não open)" do
       org_id = "org-check-in-#{System.unique_integer([:positive])}"
 

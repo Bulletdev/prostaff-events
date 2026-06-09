@@ -27,7 +27,7 @@ defmodule ProstaffEvents.Application do
       redis_url = Application.get_env(:prostaff_events, :redis_url, "redis://localhost:6379/0")
 
       [
-        {Redix, url: redis_url, name: :redix},
+        %{id: Redix, start: {Redix, :start_link, [redis_url, [name: :redix]]}},
         ProstaffEvents.RedisSubscriber,
         ProstaffEvents.InhouseQueue.Reconciler
       ]

@@ -9,6 +9,13 @@ defmodule ProstaffEvents.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       dialyzer: [plt_local_path: "priv/plts", plt_core_path: "priv/plts"],
+      test_coverage: [
+        summary: [threshold: 80],
+        ignore_modules: [
+          ProstaffEventsWeb.Router.Helpers,
+          ProstaffEvents.RailsClient.Http
+        ]
+      ],
       deps: deps()
     ]
   end
