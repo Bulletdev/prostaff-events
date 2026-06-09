@@ -17,7 +17,9 @@ defmodule ProstaffEventsWeb.NotificationChannelTest do
 
     test "rejeita usuário tentando subscribar canal de outro" do
       socket = connect_socket("user-1", "org-1")
-      assert {:error, %{reason: "unauthorized"}} = subscribe_and_join(socket, "notifications:user-2")
+
+      assert {:error, %{reason: "unauthorized"}} =
+               subscribe_and_join(socket, "notifications:user-2")
     end
   end
 

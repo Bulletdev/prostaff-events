@@ -14,14 +14,14 @@ jobs:
       MIX_ENV: test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
 
       - uses: erlef/setup-beam@v1
         with:
           elixir-version: "1.17"
           otp-version: "27"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v4.2.3
         with:
           path: |
             deps
@@ -40,14 +40,14 @@ jobs:
       MIX_ENV: dev
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
 
       - uses: erlef/setup-beam@v1
         with:
           elixir-version: "1.17"
           otp-version: "27"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v4.2.3
         with:
           path: |
             deps
@@ -56,7 +56,7 @@ jobs:
           restore-keys: dev-${{ runner.os }}-
 
       - name: Cache Dialyzer PLT
-        uses: actions/cache@v4
+        uses: actions/cache@v4.2.3
         with:
           path: priv/plts
           key: plt-${{ runner.os }}-otp27-elixir1.17-${{ hashFiles('mix.lock') }}
@@ -75,7 +75,7 @@ jobs:
     name: Semgrep
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
       - uses: semgrep/semgrep-action@v1
         with:
           config: auto
