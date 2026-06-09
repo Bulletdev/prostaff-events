@@ -67,5 +67,31 @@ defmodule ProstaffEventsWeb.EventsControllerTest do
 
       assert json_response(conn, 422)
     end
+
+    test "aceita evento com version suportada", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-api-key", "test_scraper_key")
+        |> post("/events/notify", %{
+          "type" => "match.started",
+          "org_id" => "org-1",
+          "version" => "1"
+        })
+
+      assert json_response(conn, 200)["ok"] == true
+    end
+
+    test "rejeita evento com version desconhecida", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("x-api-key", "test_scraper_key")
+        |> post("/events/notify", %{
+          "type" => "match.started",
+          "org_id" => "org-1",
+          "version" => "99"
+        })
+
+      assert json_response(conn, 422)
+    end
   end
 end

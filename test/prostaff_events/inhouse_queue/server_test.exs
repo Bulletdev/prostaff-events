@@ -3,8 +3,6 @@ defmodule ProstaffEvents.InhouseQueue.ServerTest do
 
   alias ProstaffEvents.InhouseQueue.Server
 
-  @registry ProstaffEvents.InhouseQueue.Registry
-
   # Registry, PubSub and DynamicSupervisor are started by the Application.
   # Tests use unique org_ids via System.unique_integer to avoid cross-test conflicts.
   setup do
@@ -91,19 +89,22 @@ defmodule ProstaffEvents.InhouseQueue.ServerTest do
 
   describe ":check_in_expired" do
     test "remove jogadores não confirmados e fecha se restam < 2" do
-      org_id =
-        start_server(%{
-          status: "check_in",
-          check_in_deadline: DateTime.utc_now() |> DateTime.add(-1),
-          entries: %{
-            "p1" => %{role: "top", checked_in: true},
-            "p2" => %{role: "jg", checked_in: false}
-          }
-        })
+      args = %{
+        queue_id: "q-1",
+        org_id: "org-test-#{System.unique_integer([:positive])}",
+        status: "check_in",
+        check_in_deadline: DateTime.utc_now() |> DateTime.add(-1),
+        entries: %{
+          "p1" => %{role: "top", checked_in: true},
+          "p2" => %{role: "jg", checked_in: false}
+        }
+      }
+
+      # Monitor antes de qualquer mensagem ser processada - evita race com timer em 0ms
+      pid = start_supervised!({Server, args})
+      ref = Process.monitor(pid)
 
       # Com 1 confirmado (< 2), o servidor deve parar (status closed)
-      # Aguarda o processo encerrar
-      ref = Process.monitor(GenServer.whereis({:via, Registry, {@registry, org_id}}))
       assert_receive {:DOWN, ^ref, :process, _, :normal}, 1_000
     end
 

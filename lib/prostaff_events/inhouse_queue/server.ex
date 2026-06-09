@@ -194,6 +194,11 @@ defmodule ProstaffEvents.InhouseQueue.Server do
     end
   end
 
+  defp schedule_deadline_check("check_in", nil) do
+    Logger.warning("[InhouseQueue] check_in queue has no deadline - expiry will not be enforced")
+    nil
+  end
+
   defp schedule_deadline_check("check_in", %DateTime{} = deadline) do
     ms = max(DateTime.diff(deadline, DateTime.utc_now(), :millisecond), 0)
     Process.send_after(self(), :check_in_expired, ms)

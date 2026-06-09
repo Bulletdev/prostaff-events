@@ -41,9 +41,15 @@ defmodule ProstaffEventsWeb.EventsController do
     Auth.verify_api_key(key)
   end
 
+  @supported_versions ["1"]
+
   defp validate_event(%{"type" => type, "org_id" => org_id} = params)
        when is_binary(type) and is_binary(org_id) do
-    {:ok, params}
+    case Map.get(params, "version") do
+      nil -> {:ok, params}
+      v when v in @supported_versions -> {:ok, params}
+      v -> {:error, "unsupported schema version: #{v}"}
+    end
   end
 
   defp validate_event(_), do: {:error, "missing required fields: type, org_id"}

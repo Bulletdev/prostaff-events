@@ -87,12 +87,19 @@ defmodule ProstaffEvents.InhouseQueue.Reconciler do
     end
   end
 
-  defp parse_deadline(nil), do: DateTime.utc_now()
+  defp parse_deadline(nil), do: nil
 
   defp parse_deadline(iso8601) do
     case DateTime.from_iso8601(iso8601) do
-      {:ok, dt, _} -> dt
-      _ -> DateTime.utc_now()
+      {:ok, dt, _} ->
+        dt
+
+      _ ->
+        Logger.warning("[Reconciler] Invalid check_in_deadline format",
+          reason: inspect(iso8601)
+        )
+
+        nil
     end
   end
 

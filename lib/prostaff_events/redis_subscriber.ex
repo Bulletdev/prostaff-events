@@ -39,7 +39,7 @@ defmodule ProstaffEvents.RedisSubscriber do
     {:noreply, state}
   end
 
-  # Pattern subscription confirmation - ignore
+  # Incoming pattern message - decode and route
   def handle_info({:redix_pubsub, _pubsub, _ref, :pmessage, %{payload: payload}}, state) do
     case Jason.decode(payload) do
       {:ok, event} -> route_event(event)

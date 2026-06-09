@@ -25,7 +25,7 @@ defmodule ProstaffEvents.MixProject do
 
   defp deps do
     [
-      {:phoenix, "~> 1.7"},
+      {:phoenix, "~> 1.8"},
       {:phoenix_pubsub, "~> 2.1"},
       {:redix, "~> 1.5"},
       {:castore, ">= 0.0.0"},
