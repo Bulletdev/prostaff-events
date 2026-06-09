@@ -35,7 +35,9 @@ defmodule ProstaffEvents.RedisSubscriberTest do
     end
 
     test "evento tournament_match.* extrai tournament_id do payload" do
-      e = event(%{"type" => "tournament_match.confirmed", "payload" => %{"tournament_id" => "t-99"}})
+      e =
+        event(%{"type" => "tournament_match.confirmed", "payload" => %{"tournament_id" => "t-99"}})
+
       topics = RedisSubscriber.resolve_topics(e) |> Enum.map(&elem(&1, 0))
 
       assert "org_events:org-1" in topics
@@ -80,7 +82,13 @@ defmodule ProstaffEvents.RedisSubscriberTest do
     end
 
     test "mensagem de cada tópico é {:event, event}" do
-      [{_topic, msg}] = RedisSubscriber.resolve_topics(%{"type" => "unknown", "org_id" => "org-1", "user_id" => "u"})
+      [{_topic, msg}] =
+        RedisSubscriber.resolve_topics(%{
+          "type" => "unknown",
+          "org_id" => "org-1",
+          "user_id" => "u"
+        })
+
       assert {:event, _} = msg
     end
   end

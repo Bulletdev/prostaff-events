@@ -5,8 +5,12 @@ import Config
 
 redis_url =
   case System.get_env("REDIS_URL") do
-    nil -> "redis://localhost:6379/0"
-    "" -> "redis://localhost:6379/0"
+    nil ->
+      "redis://localhost:6379/0"
+
+    "" ->
+      "redis://localhost:6379/0"
+
     url ->
       # Defend against a missing scheme - Coolify sometimes strips it
       if String.contains?(url, "://"), do: url, else: "redis://#{url}"
@@ -48,4 +52,6 @@ if config_env() == :prod do
 end
 
 config :prostaff_events, ProstaffEventsWeb.Endpoint,
-  secret_key_base: System.get_env("SECRET_KEY_BASE") || "dev_secret_key_base_at_least_64_chars_long_xxxxxxxxxxxxxxxxxxxxxx"
+  secret_key_base:
+    System.get_env("SECRET_KEY_BASE") ||
+      "dev_secret_key_base_at_least_64_chars_long_xxxxxxxxxxxxxxxxxxxxxx"

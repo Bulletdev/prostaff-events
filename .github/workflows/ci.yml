@@ -34,7 +34,7 @@ jobs:
       - run: mix test
 
   quality:
-    name: Credo + Sobelow + Dialyzer
+    name: Format + Credo + Sobelow + Dialyzer
     runs-on: ubuntu-latest
     env:
       MIX_ENV: dev
@@ -64,7 +64,18 @@ jobs:
 
       - run: mix deps.get
       - run: mix compile --warnings-as-errors
-      - run: mkdir -p priv/plts
+      - run: mix format --check-formatted
       - run: mix credo --strict
-      - run: mix sobelow --config
+      - run: mix sobelow --config --exit
+      - run: mkdir -p priv/plts
+      - run: mix dialyzer --plt
       - run: mix dialyzer --format github
+
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: semgrep/semgrep-action@v1
+        with:
+          config: auto

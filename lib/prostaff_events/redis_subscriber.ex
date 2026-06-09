@@ -77,7 +77,10 @@ defmodule ProstaffEvents.RedisSubscriber do
     version = Map.get(event, "version")
 
     if version != nil and version not in @supported_versions do
-      Logger.warning("[RedisSubscriber] Rejected event with unknown version=#{version} type=#{type}")
+      Logger.warning(
+        "[RedisSubscriber] Rejected event with unknown version=#{version} type=#{type}"
+      )
+
       []
     else
       [{"org_events:#{org_id}", {:event, event}}] ++ specific_topics(type, org_id, user_id, event)
@@ -88,9 +91,15 @@ defmodule ProstaffEvents.RedisSubscriber do
 
   defp specific_topics(type, org_id, user_id, event) do
     cond do
-      String.starts_with?(type, "notification.") -> [{"notifications:#{user_id}", {:event, event}}]
-      String.starts_with?(type, "tournament_match.") -> tournament_topics(event)
-      String.starts_with?(type, "inhouse.") -> [{"inhouse:#{org_id}", {:event, event}}]
+      String.starts_with?(type, "notification.") ->
+        [{"notifications:#{user_id}", {:event, event}}]
+
+      String.starts_with?(type, "tournament_match.") ->
+        tournament_topics(event)
+
+      String.starts_with?(type, "inhouse.") ->
+        [{"inhouse:#{org_id}", {:event, event}}]
+
       true ->
         Logger.debug("[RedisSubscriber] Unrouted event type=#{type} org=#{org_id}")
         []

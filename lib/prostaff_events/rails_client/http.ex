@@ -24,11 +24,13 @@ defmodule ProstaffEvents.RailsClient.Http do
   defp generate_internal_token do
     secret = Application.get_env(:prostaff_events, :internal_jwt_secret, "")
     signer = Joken.Signer.create("HS256", secret)
+
     claims = %{
       "type" => "internal",
       "iss" => "prostaff-events",
       "iat" => DateTime.to_unix(DateTime.utc_now())
     }
+
     {:ok, token, _} = Joken.encode_and_sign(claims, signer)
     token
   end

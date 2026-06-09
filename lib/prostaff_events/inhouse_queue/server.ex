@@ -65,7 +65,13 @@ defmodule ProstaffEvents.InhouseQueue.Server do
   # --- Server callbacks ---
 
   @impl true
-  def init(%{queue_id: queue_id, org_id: org_id, status: status, check_in_deadline: deadline, entries: entries}) do
+  def init(%{
+        queue_id: queue_id,
+        org_id: org_id,
+        status: status,
+        check_in_deadline: deadline,
+        entries: entries
+      }) do
     timer_ref = schedule_deadline_check(status, deadline)
 
     state = %__MODULE__{
@@ -77,7 +83,10 @@ defmodule ProstaffEvents.InhouseQueue.Server do
       timer_ref: timer_ref
     }
 
-    Logger.info("[InhouseQueue] Started GenServer queue=#{queue_id} org=#{org_id} status=#{status}")
+    Logger.info(
+      "[InhouseQueue] Started GenServer queue=#{queue_id} org=#{org_id} status=#{status}"
+    )
+
     {:ok, state}
   end
 
@@ -89,8 +98,13 @@ defmodule ProstaffEvents.InhouseQueue.Server do
       new_entries = Map.put(state.entries, player_id, %{role: role, checked_in: false})
       new_state = %{state | entries: new_entries}
       broadcast_queue_update(new_state, "player_joined", %{player_id: player_id, role: role})
-      :telemetry.execute(@telemetry_prefix ++ [:join], %{count: 1},
-        %{org_id: state.org_id, queue_id: state.queue_id, player_id: player_id})
+
+      :telemetry.execute(@telemetry_prefix ++ [:join], %{count: 1}, %{
+        org_id: state.org_id,
+        queue_id: state.queue_id,
+        player_id: player_id
+      })
+
       {:reply, {:ok, queue_summary(new_state)}, new_state}
     end
   end
@@ -100,8 +114,13 @@ defmodule ProstaffEvents.InhouseQueue.Server do
     new_entries = Map.delete(state.entries, player_id)
     new_state = %{state | entries: new_entries}
     broadcast_queue_update(new_state, "player_left", %{player_id: player_id})
-    :telemetry.execute(@telemetry_prefix ++ [:leave], %{count: 1},
-      %{org_id: state.org_id, queue_id: state.queue_id, player_id: player_id})
+
+    :telemetry.execute(@telemetry_prefix ++ [:leave], %{count: 1}, %{
+      org_id: state.org_id,
+      queue_id: state.queue_id,
+      player_id: player_id
+    })
+
     {:reply, {:ok, queue_summary(new_state)}, new_state}
   end
 
@@ -118,8 +137,13 @@ defmodule ProstaffEvents.InhouseQueue.Server do
           new_entries = Map.put(state.entries, player_id, %{entry | checked_in: true})
           new_state = %{state | entries: new_entries}
           broadcast_queue_update(new_state, "player_checked_in", %{player_id: player_id})
-          :telemetry.execute(@telemetry_prefix ++ [:checkin], %{count: 1},
-            %{org_id: state.org_id, queue_id: state.queue_id, player_id: player_id})
+
+          :telemetry.execute(@telemetry_prefix ++ [:checkin], %{count: 1}, %{
+            org_id: state.org_id,
+            queue_id: state.queue_id,
+            player_id: player_id
+          })
+
           {:reply, {:ok, queue_summary(new_state)}, new_state}
       end
     end
@@ -181,13 +205,14 @@ defmodule ProstaffEvents.InhouseQueue.Server do
     PubSub.broadcast(
       ProstaffEvents.PubSub,
       "inhouse:#{state.org_id}",
-      {:queue_update, Map.merge(extra, %{
-        event: event_type,
-        queue_id: state.queue_id,
-        org_id: state.org_id,
-        status: state.status,
-        player_count: map_size(state.entries)
-      })}
+      {:queue_update,
+       Map.merge(extra, %{
+         event: event_type,
+         queue_id: state.queue_id,
+         org_id: state.org_id,
+         status: state.status,
+         player_count: map_size(state.entries)
+       })}
     )
   end
 

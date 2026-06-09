@@ -79,7 +79,12 @@ defmodule ProstaffEvents.InhouseQueue.ServerTest do
     end
 
     test "rejeita se jogador não está na queue" do
-      org_id = start_server(%{status: "check_in", check_in_deadline: DateTime.utc_now() |> DateTime.add(60)})
+      org_id =
+        start_server(%{
+          status: "check_in",
+          check_in_deadline: DateTime.utc_now() |> DateTime.add(60)
+        })
+
       assert {:error, "player_not_in_queue"} = Server.checkin(org_id, "player-ausente")
     end
   end

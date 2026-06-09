@@ -30,7 +30,10 @@ defmodule ProstaffEvents.AuthTest do
 
     test "rejeita token com assinatura inválida" do
       bad_signer = Joken.Signer.create("HS256", "wrong_secret")
-      {:ok, token, _} = Joken.encode_and_sign(%{"user_id" => "u1", "org_id" => "org1"}, bad_signer)
+
+      {:ok, token, _} =
+        Joken.encode_and_sign(%{"user_id" => "u1", "org_id" => "org1"}, bad_signer)
+
       assert {:error, _} = Auth.verify_token(token)
     end
 

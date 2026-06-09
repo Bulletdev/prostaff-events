@@ -25,6 +25,7 @@ defmodule ProstaffEvents.Application do
       []
     else
       redis_url = Application.get_env(:prostaff_events, :redis_url, "redis://localhost:6379/0")
+
       [
         {Redix, url: redis_url, name: :redix},
         ProstaffEvents.RedisSubscriber,

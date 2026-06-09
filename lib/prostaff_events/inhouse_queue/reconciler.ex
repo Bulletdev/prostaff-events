@@ -31,16 +31,23 @@ defmodule ProstaffEvents.InhouseQueue.Reconciler do
         Enum.each(queues, &start_queue_server/1)
 
       {:error, reason} ->
-        delays = Application.get_env(:prostaff_events, :reconciler_retry_delays, [1_000, 2_000, 4_000])
+        delays =
+          Application.get_env(:prostaff_events, :reconciler_retry_delays, [1_000, 2_000, 4_000])
 
         if attempt < length(delays) do
           delay = Enum.at(delays, attempt)
-          Logger.warning("[Reconciler] Fetch failed (attempt #{attempt + 1}/#{length(delays) + 1}), retrying in #{delay}ms",
-            reason: inspect(reason))
+
+          Logger.warning(
+            "[Reconciler] Fetch failed (attempt #{attempt + 1}/#{length(delays) + 1}), retrying in #{delay}ms",
+            reason: inspect(reason)
+          )
+
           Process.send_after(self(), {:reconcile, attempt + 1}, delay)
         else
-          Logger.warning("[Reconciler] Failed to fetch active queues after #{attempt + 1} attempts - starting without state",
-            reason: inspect(reason))
+          Logger.warning(
+            "[Reconciler] Failed to fetch active queues after #{attempt + 1} attempts - starting without state",
+            reason: inspect(reason)
+          )
         end
     end
 

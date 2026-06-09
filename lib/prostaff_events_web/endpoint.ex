@@ -12,6 +12,7 @@ defmodule ProstaffEventsWeb.Endpoint do
 
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+
   plug Plug.Parsers,
     parsers: [:urlencoded, :json],
     json_decoder: Phoenix.json_library()

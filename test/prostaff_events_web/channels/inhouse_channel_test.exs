@@ -26,13 +26,16 @@ defmodule ProstaffEventsWeb.InhouseChannelTest do
     setup do
       org_id = "org-channel-#{System.unique_integer([:positive])}"
 
-      start_supervised!({Server, %{
-        queue_id: "q-1",
-        org_id: org_id,
-        status: "open",
-        check_in_deadline: nil,
-        entries: %{}
-      }})
+      start_supervised!(
+        {Server,
+         %{
+           queue_id: "q-1",
+           org_id: org_id,
+           status: "open",
+           check_in_deadline: nil,
+           entries: %{}
+         }}
+      )
 
       socket = connect_socket(org_id)
       {:ok, _, socket} = subscribe_and_join(socket, "inhouse:#{org_id}")
@@ -62,13 +65,14 @@ defmodule ProstaffEventsWeb.InhouseChannelTest do
       org_id = "org-check-in-#{System.unique_integer([:positive])}"
 
       start_supervised!(
-        {Server, %{
-          queue_id: "q-ci",
-          org_id: org_id,
-          status: "check_in",
-          check_in_deadline: DateTime.utc_now() |> DateTime.add(60),
-          entries: %{}
-        }},
+        {Server,
+         %{
+           queue_id: "q-ci",
+           org_id: org_id,
+           status: "check_in",
+           check_in_deadline: DateTime.utc_now() |> DateTime.add(60),
+           entries: %{}
+         }},
         id: :check_in_server,
         restart: :temporary
       )

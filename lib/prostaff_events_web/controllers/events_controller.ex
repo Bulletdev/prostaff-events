@@ -41,7 +41,8 @@ defmodule ProstaffEventsWeb.EventsController do
     Auth.verify_api_key(key)
   end
 
-  defp validate_event(%{"type" => type, "org_id" => org_id} = params) when is_binary(type) and is_binary(org_id) do
+  defp validate_event(%{"type" => type, "org_id" => org_id} = params)
+       when is_binary(type) and is_binary(org_id) do
     {:ok, params}
   end
 
