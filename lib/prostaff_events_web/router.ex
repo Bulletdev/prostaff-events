@@ -9,6 +9,7 @@ defmodule ProstaffEventsWeb.Router do
     pipe_through :api
 
     get "/health", EventsController, :health
+    get "/health/ready", EventsController, :ready
     post "/events/notify", EventsController, :notify
   end
 end

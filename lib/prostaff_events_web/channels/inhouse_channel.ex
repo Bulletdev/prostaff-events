@@ -1,7 +1,8 @@
 defmodule ProstaffEventsWeb.InhouseChannel do
+  @moduledoc false
   use Phoenix.Channel
 
-  alias ProstaffEvents.InhouseQueue
+  alias ProstaffEvents.{InhouseQueue, RateLimit}
 
   # Frontend subscribes to: "inhouse:{org_id}"
   # Only members of the organization can subscribe.
@@ -27,11 +28,17 @@ defmodule ProstaffEventsWeb.InhouseChannel do
     {:noreply, socket}
   end
 
-  # Client actions — delegate to InhouseQueue.Server for serialized execution
+  # Client actions - delegate to InhouseQueue.Server for serialized execution
   def handle_in("join_queue", %{"player_id" => player_id, "role" => role}, socket) do
-    case InhouseQueue.Server.join(socket.assigns.org_id, player_id, role) do
-      {:ok, state} -> {:reply, {:ok, state}, socket}
-      {:error, reason} -> {:reply, {:error, %{reason: reason}}, socket}
+    case RateLimit.check(socket.assigns.org_id) do
+      :ok ->
+        case InhouseQueue.Server.join(socket.assigns.org_id, player_id, role) do
+          {:ok, state} -> {:reply, {:ok, state}, socket}
+          {:error, reason} -> {:reply, {:error, %{reason: reason}}, socket}
+        end
+
+      {:error, :rate_limited} ->
+        {:reply, {:error, %{reason: "rate_limited"}}, socket}
     end
   end
 

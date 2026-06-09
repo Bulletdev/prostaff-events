@@ -1,30 +1,36 @@
 defmodule ProstaffEvents.Application do
+  @moduledoc false
   use Application
 
   @impl true
   def start(_type, _args) do
-    children = [
-      # Registry for InhouseQueue GenServers — keyed by "org_id:queue_id"
-      {Registry, keys: :unique, name: ProstaffEvents.InhouseQueue.Registry},
-
-      # Phoenix PubSub — broadcast hub for all channels
-      {Phoenix.PubSub, name: ProstaffEvents.PubSub},
-
-      # Redis subscriber — listens on prostaff:events:* channels published by Rails
-      ProstaffEvents.RedisSubscriber,
-
-      # InhouseQueue DynamicSupervisor — one GenServer per active queue
-      {DynamicSupervisor, name: ProstaffEvents.InhouseQueue.Supervisor, strategy: :one_for_one},
-
-      # Reconcile active inhouse queues from Rails on startup
-      ProstaffEvents.InhouseQueue.Reconciler,
-
-      # Phoenix HTTP endpoint
-      ProstaffEventsWeb.Endpoint
-    ]
+    children =
+      [
+        {Registry, keys: :unique, name: ProstaffEvents.InhouseQueue.Registry},
+        {Phoenix.PubSub, name: ProstaffEvents.PubSub},
+        {DynamicSupervisor, name: ProstaffEvents.InhouseQueue.Supervisor, strategy: :one_for_one},
+        ProstaffEvents.RateLimit,
+        ProstaffEventsWeb.Endpoint
+      ] ++ runtime_children()
 
     opts = [strategy: :one_for_one, name: ProstaffEvents.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  # RedisSubscriber and Reconciler are not started in test - tests start them
+  # manually via start_supervised! to control deps and avoid ordering issues
+  # with Mox mock setup.
+  defp runtime_children do
+    if Application.get_env(:prostaff_events, :env, :prod) == :test do
+      []
+    else
+      redis_url = Application.get_env(:prostaff_events, :redis_url, "redis://localhost:6379/0")
+      [
+        {Redix, url: redis_url, name: :redix},
+        ProstaffEvents.RedisSubscriber,
+        ProstaffEvents.InhouseQueue.Reconciler
+      ]
+    end
   end
 
   @impl true

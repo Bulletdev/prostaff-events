@@ -8,14 +8,21 @@ defmodule ProstaffEvents.Auth do
 
   def verify_token(token) when is_binary(token) do
     secret = Application.fetch_env!(:prostaff_events, :internal_jwt_secret)
-
     signer = Joken.Signer.create(@algorithm, secret)
 
-    case Joken.verify(token, signer) do
-      {:ok, claims} -> extract_identity(claims)
-      {:error, reason} -> {:error, reason}
+    with {:ok, claims} <- Joken.verify(token, signer),
+         :ok <- check_expiry(claims) do
+      extract_identity(claims)
     end
   end
+
+  defp check_expiry(%{"exp" => exp}) when is_integer(exp) do
+    if exp >= DateTime.to_unix(DateTime.utc_now()),
+      do: :ok,
+      else: {:error, :token_expired}
+  end
+
+  defp check_expiry(_claims), do: :ok
 
   def verify_api_key(provided_key) do
     expected = Application.get_env(:prostaff_events, :scraper_api_key, "")

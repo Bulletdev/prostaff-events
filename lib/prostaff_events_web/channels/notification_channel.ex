@@ -1,4 +1,5 @@
 defmodule ProstaffEventsWeb.NotificationChannel do
+  @moduledoc false
   use Phoenix.Channel
 
   # Frontend subscribes to: "notifications:{user_id}"

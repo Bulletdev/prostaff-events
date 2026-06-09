@@ -3,7 +3,7 @@ defmodule ProstaffEvents.InhouseQueue.Server do
   GenServer per active InhouseQueue. Serializes all mutations (join/leave/checkin)
   so no race conditions are possible at the application level.
 
-  State is ephemeral — PostgreSQL (via Rails) is the source of truth.
+  State is ephemeral - PostgreSQL (via Rails) is the source of truth.
   On startup, Reconciler rebuilds GenServers for queues in check_in state
   with deadlines still in the future.
 
@@ -16,6 +16,8 @@ defmodule ProstaffEvents.InhouseQueue.Server do
   require Logger
 
   alias Phoenix.PubSub
+
+  @telemetry_prefix [:prostaff, :inhouse_queue]
 
   defstruct [:queue_id, :org_id, :status, :check_in_deadline, :entries, :timer_ref]
 
@@ -87,6 +89,8 @@ defmodule ProstaffEvents.InhouseQueue.Server do
       new_entries = Map.put(state.entries, player_id, %{role: role, checked_in: false})
       new_state = %{state | entries: new_entries}
       broadcast_queue_update(new_state, "player_joined", %{player_id: player_id, role: role})
+      :telemetry.execute(@telemetry_prefix ++ [:join], %{count: 1},
+        %{org_id: state.org_id, queue_id: state.queue_id, player_id: player_id})
       {:reply, {:ok, queue_summary(new_state)}, new_state}
     end
   end
@@ -96,6 +100,8 @@ defmodule ProstaffEvents.InhouseQueue.Server do
     new_entries = Map.delete(state.entries, player_id)
     new_state = %{state | entries: new_entries}
     broadcast_queue_update(new_state, "player_left", %{player_id: player_id})
+    :telemetry.execute(@telemetry_prefix ++ [:leave], %{count: 1},
+      %{org_id: state.org_id, queue_id: state.queue_id, player_id: player_id})
     {:reply, {:ok, queue_summary(new_state)}, new_state}
   end
 
@@ -112,6 +118,8 @@ defmodule ProstaffEvents.InhouseQueue.Server do
           new_entries = Map.put(state.entries, player_id, %{entry | checked_in: true})
           new_state = %{state | entries: new_entries}
           broadcast_queue_update(new_state, "player_checked_in", %{player_id: player_id})
+          :telemetry.execute(@telemetry_prefix ++ [:checkin], %{count: 1},
+            %{org_id: state.org_id, queue_id: state.queue_id, player_id: player_id})
           {:reply, {:ok, queue_summary(new_state)}, new_state}
       end
     end
@@ -150,8 +158,9 @@ defmodule ProstaffEvents.InhouseQueue.Server do
 
   # --- Private ---
 
-  defp via(queue_id, org_id) do
-    {:via, Registry, {ProstaffEvents.InhouseQueue.Registry, "#{org_id}:#{queue_id}"}}
+  # Key is org_id only - one active queue per org at a time.
+  defp via(_queue_id, org_id) do
+    {:via, Registry, {ProstaffEvents.InhouseQueue.Registry, org_id}}
   end
 
   defp lookup(org_id) do

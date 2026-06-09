@@ -8,7 +8,7 @@ config :prostaff_events, ProstaffEventsWeb.Endpoint,
 
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id, :event_type, :org_id]
+  metadata: [:request_id, :event_type, :org_id, :queue_id, :status, :reason, :open, :check_in]
 
 config :phoenix, :json_library, Jason
 

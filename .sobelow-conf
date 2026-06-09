@@ -1,0 +1,4 @@
+[
+  router: "lib/prostaff_events_web/router.ex",
+  ignored: ["Config.HTTPS"]
+]

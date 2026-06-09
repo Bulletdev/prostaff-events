@@ -1,16 +1,16 @@
 defmodule ProstaffEventsWeb.EventsController do
   use Phoenix.Controller, formats: [:json]
 
-  alias ProstaffEvents.Auth
+  alias ProstaffEvents.{Auth, Health}
 
   # POST /events/notify
   # Called by Scraper (external HTTP) with X-API-Key auth.
-  # Rails publishes via Redis pub/sub directly — this endpoint is only for the Scraper.
+  # Rails publishes via Redis pub/sub directly - this endpoint is only for the Scraper.
   def notify(conn, params) do
     with :ok <- verify_api_key(conn),
          {:ok, event} <- validate_event(params) do
       route_event(event)
-      send_resp(conn, 200, Jason.encode!(%{ok: true}))
+      json(conn, %{ok: true})
     else
       {:error, :invalid_api_key} ->
         conn |> put_status(401) |> json(%{error: "unauthorized"})
@@ -20,9 +20,20 @@ defmodule ProstaffEventsWeb.EventsController do
     end
   end
 
-  # GET /health
+  # GET /health - liveness (no I/O, always fast)
   def health(conn, _params) do
     json(conn, %{status: "ok", service: "prostaff-events", vsn: "0.1.0"})
+  end
+
+  # GET /health/ready - readiness (checks Redis + Rails)
+  def ready(conn, _params) do
+    case Health.ready() do
+      {:ok, checks} ->
+        json(conn, %{status: "ok", checks: checks})
+
+      {:error, checks} ->
+        conn |> put_status(503) |> json(%{status: "unavailable", checks: checks})
+    end
   end
 
   defp verify_api_key(conn) do
@@ -43,13 +54,10 @@ defmodule ProstaffEventsWeb.EventsController do
     Phoenix.PubSub.broadcast(ProstaffEvents.PubSub, "org_events:#{org_id}", {:event, event})
 
     # Additional routing for specific event types
-    cond do
-      String.starts_with?(type, "match.") ->
-        # Broadcast to all connected clients subscribed to this org
-        Logger.info("[EventsController] Routed #{type} for org=#{org_id}")
-
-      true ->
-        Logger.debug("[EventsController] Forwarded #{type} to org=#{org_id}")
+    if String.starts_with?(type, "match.") do
+      Logger.info("[EventsController] Routed #{type} for org=#{org_id}")
+    else
+      Logger.debug("[EventsController] Forwarded #{type} to org=#{org_id}")
     end
   end
 end

@@ -16,7 +16,7 @@ defmodule ProstaffEventsWeb.UserSocket do
 
       {:error, reason} ->
         require Logger
-        Logger.warn("[UserSocket] Auth rejected: #{inspect(reason)}")
+        Logger.warning("[UserSocket] Auth rejected: #{inspect(reason)}")
         :error
     end
   end

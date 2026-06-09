@@ -21,7 +21,12 @@ WORKDIR /app
 
 RUN apk add --no-cache ncurses-libs libstdc++ libgcc
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 COPY --from=builder /app/_build/prod/rel/prostaff_events ./
+RUN chown -R appuser:appgroup /app
+
+USER appuser
 
 ENV HOME=/app
 ENV MIX_ENV=prod

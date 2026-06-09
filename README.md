@@ -12,7 +12,10 @@
 <div align="center">
 
 [![Elixir Version](https://img.shields.io/badge/elixir-1.17-4B275F?logo=elixir)](https://elixir-lang.org/)
-[![Phoenix Version](https://img.shields.io/badge/phoenix-1.7-FF6B35?logo=phoenixframework)](https://phoenixframework.org/)
+[![Phoenix Version](https://img.shields.io/badge/phoenix-1.8-FF6B35?logo=phoenixframework)](https://phoenixframework.org/)
+[![Tests](https://img.shields.io/badge/tests-44%20passing-brightgreen)](/)
+[![Credo](https://img.shields.io/badge/credo-0%20issues-brightgreen)](/)
+[![Sobelow](https://img.shields.io/badge/sobelow-0%20findings-brightgreen)](/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 </div>
@@ -21,7 +24,7 @@
 
 ```
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║  PROSTAFF EVENTS — Elixir / Phoenix 1.7                                      ║
+║  PROSTAFF EVENTS — Elixir / Phoenix 1.8                                      ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║  Real-time event bus for the ProStaff ecosystem.                             ║
 ║  Subscribes to Redis pub/sub from Rails and pushes events via WebSocket.     ║
@@ -35,16 +38,27 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
+│  REAL-TIME                                                                  │
 │  [■] Phoenix Channels       — WebSocket delivery for all domain events      │
 │  [■] Redis Pub/Sub          — PSUBSCRIBE prostaff:events:* from Rails API   │
-│  [■] InhouseQueue GenServer — One GenServer per active queue (BEAM actor)   │
+│  [■] Schema Versioning      — version field validated; unknown ver rejected │
+│                                                                             │
+│  INHOUSE QUEUE                                                              │
+│  [■] InhouseQueue GenServer — One BEAM actor per active queue               │
 │  [■] Check-in Deadline      — Process.send_after timer, no cron needed      │
 │  [■] Startup Reconciler     — Rebuilds GenServers from Rails API on boot    │
+│  [■] Reconciler Backoff     — Retries 3× (1s / 2s / 4s) before giving up    │
+│  [■] Rate Limiting          — 10 joins/min per org_id via ETS               │
+│                                                                             │
+│  SECURITY & OPS                                                             │
 │  [■] JWT Auth               — User JWT + Internal JWT (service-to-service)  │
-│  [■] Tenant Isolation       — org_id validated on every channel subscription│
+│  [■] Tenant Isolation       — org_id validated on every channel join        │
 │  [■] Scraper Webhook        — POST /events/notify via X-API-Key             │
-│  [■] Health Endpoint        — GET /health for Coolify + Traefik probes      │
-│  [■] Supervised Tree        — OTP supervisor restarts any crashed process   │
+│  [■] Liveness Probe         — GET /health (no I/O, always fast)             │
+│  [■] Readiness Probe        — GET /health/ready (checks Redis + Rails)      │
+│  [■] Telemetry              — :prostaff.inhouse_queue.join/leave/checkin    │
+│  [■] Non-root container     — Docker USER appuser                           │
+│  [■] Force SSL              — HSTS + X-Forwarded-Proto via Traefik          │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -62,8 +76,9 @@
 │  04 · Setup                                          │
 │  05 · WebSocket Channels                             │
 │  06 · Domain Events                                  │
-│  07 · Deployment                                     │
-│  08 · Environment Variables                          │
+│  07 · Testing & Quality                              │
+│  08 · Deployment                                     │
+│  09 · Environment Variables                          │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -75,15 +90,18 @@
 <summary><kbd>▶ Docker (Recommended)</kbd></summary>
 
 ```bash
-# Start the events service (requires Redis running separately or via prostaff-api stack)
 cp .env.example .env
 # Edit .env — set REDIS_URL, INTERNAL_JWT_SECRET, SECRET_KEY_BASE
 
 docker compose up -d
 
-# Health check
+# Liveness
 curl http://localhost:4000/health
-# {"status":"ok"}
+# {"status":"ok","service":"prostaff-events","vsn":"0.1.0"}
+
+# Readiness (checks Redis + Rails API)
+curl http://localhost:4000/health/ready
+# {"status":"ok","checks":{"redis":"ok","rails":"ok"}}
 ```
 
 </details>
@@ -93,7 +111,6 @@ curl http://localhost:4000/health
 
 ```bash
 cp .env.example .env
-# Edit .env
 
 mix deps.get
 mix phx.server
@@ -104,7 +121,8 @@ mix phx.server
 
 ```
   Events WS:   ws://localhost:4000/socket
-  Health:      http://localhost:4000/health
+  Liveness:    http://localhost:4000/health
+  Readiness:   http://localhost:4000/health/ready
 ```
 
 ---
@@ -116,14 +134,23 @@ mix phx.server
 ║  LAYER               ║  TECHNOLOGY                                        ║
 ╠══════════════════════╬════════════════════════════════════════════════════╣
 ║  Language            ║  Elixir 1.17                                       ║
-║  Framework           ║  Phoenix 1.7                                       ║
+║  Framework           ║  Phoenix 1.8                                       ║
 ║  Real-time           ║  Phoenix Channels (WebSocket)                      ║
 ║  Pub/Sub             ║  Phoenix.PubSub + Redix (Redis subscriber)         ║
 ║  State               ║  GenServer (one per active InhouseQueue)           ║
-║  Auth                ║  Joken 2.6 (JWT verification)                      ║
-║  Transport           ║  Redis pub/sub (channel: prostaff:events:{org_id}) ║
+║  Rate Limiting       ║  ETS — per org_id sliding window                   ║
+║  Auth                ║  Joken 2.6 (JWT verification + manual exp check)   ║
+║  Observability       ║  :telemetry + structured Logger metadata           ║
 ║  HTTP server         ║  Plug.Cowboy 2.7                                   ║
+║  HTTP client         ║  Req 0.5 (Reconciler + Health checks)              ║
 ║  CORS                ║  Corsica 2.1                                       ║
+╠══════════════════════╬════════════════════════════════════════════════════╣
+║  TESTING             ║                                                    ║
+║  Unit / Integration  ║  ExUnit + Phoenix.ChannelTest + ConnCase           ║
+║  Mocking             ║  Mox (RailsClient behaviour)                       ║
+║  Linter              ║  Credo --strict                                    ║
+║  Security scanner    ║  Sobelow (Phoenix-specific) + Semgrep              ║
+║  Type checker        ║  Dialyxir (Dialyzer wrapper)                       ║
 ╚══════════════════════╩════════════════════════════════════════════════════╝
 ```
 
@@ -159,32 +186,62 @@ graph TD
     S[ProstaffEvents.Supervisor]
     S --> R[Registry — InhouseQueue.Registry]
     S --> PS[Phoenix.PubSub]
-    S --> RS[RedisSubscriber — PSUBSCRIBE prostaff:events:*]
+    S --> RL[RateLimit — ETS per org_id]
     S --> DS[InhouseQueue.Supervisor — DynamicSupervisor]
-    S --> RC[InhouseQueue.Reconciler — fetches active queues on boot]
     S --> EP[ProstaffEventsWeb.Endpoint]
-    DS --> GS1[InhouseQueue.Server org1:queue1]
-    DS --> GS2[InhouseQueue.Server org2:queue2]
+    S --> RX[Redix — :redix health connection]
+    S --> RS[RedisSubscriber — PSUBSCRIBE prostaff:events:*]
+    S --> RC[InhouseQueue.Reconciler — fetches active queues on boot]
+    DS --> GS1[InhouseQueue.Server org1]
+    DS --> GS2[InhouseQueue.Server org2]
 
     style S fill:#4B275F
     style RS fill:#d82c20
     style DS fill:#4B275F
     style GS1 fill:#FF6B35
     style GS2 fill:#FF6B35
+    style RL fill:#2e7d32
 ```
 
-### Transport
+### Transport & Schema
 
 Rails publishes to Redis via `EventPublishJob` (Sidekiq, queue `:events`, retry: 0):
 
 ```
 channel format:  prostaff:events:{org_id}
-envelope fields: id, type, user_id, org_id, payload, published_at
 ```
 
-`RedisSubscriber` uses `PSUBSCRIBE prostaff:events:*` and routes by event type prefix
-to the appropriate `Phoenix.PubSub` topic. Channels receive the broadcast and forward
-to connected WebSocket clients.
+Event envelope:
+
+```json
+{
+  "version":      "1",
+  "id":           "uuid",
+  "type":         "inhouse.session_started",
+  "org_id":       "org-123",
+  "user_id":      "user-456",
+  "payload":      { ... },
+  "published_at": "2026-06-08T00:00:00Z"
+}
+```
+
+`RedisSubscriber` validates the `version` field — events with unknown versions are rejected before routing. Missing version is accepted for backward compatibility. Routing is done by `type` prefix:
+
+```
+notification.*     → notifications:{user_id}  +  org_events:{org_id}
+tournament_match.* → tournament:{tournament_id}  +  org_events:{org_id}
+inhouse.*          → inhouse:{org_id}  +  org_events:{org_id}
+(all others)       → org_events:{org_id}
+```
+
+### Rate Limiting
+
+`join_queue` channel events are rate-limited per `org_id` using an ETS sliding window:
+
+```
+default:  10 events / 60 seconds / org_id
+response: {:error, %{reason: "rate_limited"}} on the channel reply
+```
 
 ---
 
@@ -210,7 +267,7 @@ mix deps.get
 **2. Configure environment:**
 ```bash
 cp .env.example .env
-# Edit .env — see Section 08 for all variables
+# Edit .env — see Section 09 for all variables
 ```
 
 **3. Start the service:**
@@ -220,8 +277,14 @@ mix phx.server
 
 **4. Verify:**
 ```bash
+# Liveness (no I/O — always fast)
 curl http://localhost:4000/health
-# {"status":"ok","redis":"connected","version":"0.1.0"}
+# {"status":"ok","service":"prostaff-events","vsn":"0.1.0"}
+
+# Readiness (checks Redis PING + Rails /health)
+curl http://localhost:4000/health/ready
+# {"status":"ok","checks":{"redis":"ok","rails":"ok"}}
+# 503 + {"status":"unavailable","checks":{"redis":"...","rails":"..."}} if deps down
 ```
 
 ---
@@ -251,6 +314,26 @@ socket.connect()
 ╚═══════════════════════════╩════════════════════╩═════════════════════════════╝
 ```
 
+### Client Actions (inhouse channel)
+
+```js
+const ch = socket.channel(`inhouse:${orgId}`)
+ch.join()
+
+// Join the queue
+ch.push("join_queue", { player_id: "player-1", role: "top" })
+  .receive("ok",    state  => console.log("joined", state.player_count))
+  .receive("error", err    => console.error(err.reason)) // "queue_not_open" | "rate_limited"
+
+// Confirm presence during check-in
+ch.push("checkin", { player_id: "player-1" })
+  .receive("ok",    state => console.log("checked in"))
+  .receive("error", err   => console.error(err.reason))
+
+// Server-pushed events
+ch.on("queue_update", ({ event, player_count }) => { ... })
+```
+
 ### Usage Examples
 
 ```js
@@ -260,12 +343,6 @@ notifChannel.join()
 notifChannel.on("notification.created", ({ notification }) => {
   console.log(notification.title)
 })
-
-// Inhouse queue
-const inhouseChannel = socket.channel(`inhouse:${orgId}`)
-inhouseChannel.join()
-inhouseChannel.on("queue_updated",    ({ queue }) => { ... })
-inhouseChannel.on("check_in_expired", ({ queue }) => { ... })
 
 // Tournament
 const tournamentChannel = socket.channel(`tournament:${tournamentId}`)
@@ -310,7 +387,42 @@ Content-Type: application/json
 
 ---
 
-## 07 · Deployment
+## 07 · Testing & Quality
+
+```bash
+# Run the full test suite (44 tests)
+mix test
+
+# Linter — style, complexity, best practices
+mix credo --strict
+
+# Security scanner (Phoenix-specific: XSS, SQLi, CSRF, secrets exposure)
+mix sobelow --config
+
+# Static analysis / type checking
+mix dialyzer
+
+# Semgrep (CLI — runs without mix)
+semgrep --config auto
+```
+
+```
+╔════════════════╦════════════════════════════════════════════════════════════╗
+║  Tool          ║  Coverage                                                  ║
+╠════════════════╬════════════════════════════════════════════════════════════╣
+║  ExUnit        ║  Unit (Auth, RedisSubscriber routing, InhouseQueue.Server) ║
+║                ║  Integration (Reconciler + Mox, Channel, Controller)       ║
+║  Mox           ║  RailsClient behaviour — process-safe expectations         ║
+║  Credo         ║  Code style, nesting depth, unused vars, readability       ║
+║  Sobelow       ║  Phoenix XSS, SQLi, CSRF, hardcoded secrets, config audit  ║
+║  Semgrep       ║  Dockerfile security, language-level patterns              ║
+║  Dialyxir      ║  Type inference via Erlang Dialyzer — catches bad specs    ║
+╚════════════════╩════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## 08 · Deployment
 
 ### Production Architecture (Coolify)
 
@@ -358,7 +470,9 @@ graph TB
 - Both services share the same Redis instance via the `coolify` Docker network
 - prostaff-events joins `coolify: external: true` — no separate Redis container
 - Traefik handles TLS for `events.prostaff.gg` via Let's Encrypt
-- Internal communication between services uses container names (e.g. `http://api:3000`)
+- Phoenix uses `force_ssl` with `rewrite_on: [:x_forwarded_proto]` — HSTS enforced
+- Container runs as non-root user (`appuser`) for reduced attack surface
+- Internal communication uses container names (e.g. `http://api:3000`)
 
 ### Coolify Panel — Required Env Vars
 
@@ -383,7 +497,7 @@ PHOENIX_EVENTS_URL=http://events:4000
 
 ---
 
-## 08 · Environment Variables
+## 09 · Environment Variables
 
 ```
 ╔════════════════════════╦══════════╦══════════════════════════════════════════╗

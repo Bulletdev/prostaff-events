@@ -1,10 +1,10 @@
 defmodule ProstaffEvents.InhouseQueue.Reconciler do
   @moduledoc """
-  On startup, fetches all InhouseQueues in check_in state with a future deadline
-  from the Rails API and starts a GenServer for each.
+  On startup, fetches all active InhouseQueues from the Rails API and starts a
+  GenServer for each. Handles both "open" and "check_in" states.
 
-  This ensures timers survive Phoenix restarts — if Phoenix was down for 1 hour
-  and the deadline already passed, the GenServer fires :check_in_expired immediately
+  Ensures timers survive Phoenix restarts - if the check_in deadline already
+  passed while Phoenix was down, the GenServer fires :check_in_expired immediately
   (ms = 0 via max/2 in Server.schedule_deadline_check).
   """
 
@@ -17,39 +17,34 @@ defmodule ProstaffEvents.InhouseQueue.Reconciler do
 
   @impl true
   def init(_opts) do
-    # Run reconciliation after the supervision tree is fully started
-    send(self(), :reconcile)
+    send(self(), {:reconcile, 0})
     {:ok, %{}}
   end
 
   @impl true
-  def handle_info(:reconcile, state) do
-    case fetch_active_queues() do
+  def handle_info({:reconcile, attempt}, state) do
+    case rails_client().get_active_queues() do
       {:ok, queues} ->
-        Logger.info("[Reconciler] Starting #{length(queues)} InhouseQueue GenServers from Rails")
+        open = Enum.count(queues, &(&1["status"] == "open"))
+        check_in = Enum.count(queues, &(&1["status"] == "check_in"))
+        Logger.info("[Reconciler] Reconciling queues", open: open, check_in: check_in)
         Enum.each(queues, &start_queue_server/1)
 
       {:error, reason} ->
-        Logger.warn("[Reconciler] Failed to fetch active queues: #{inspect(reason)}")
+        delays = Application.get_env(:prostaff_events, :reconciler_retry_delays, [1_000, 2_000, 4_000])
+
+        if attempt < length(delays) do
+          delay = Enum.at(delays, attempt)
+          Logger.warning("[Reconciler] Fetch failed (attempt #{attempt + 1}/#{length(delays) + 1}), retrying in #{delay}ms",
+            reason: inspect(reason))
+          Process.send_after(self(), {:reconcile, attempt + 1}, delay)
+        else
+          Logger.warning("[Reconciler] Failed to fetch active queues after #{attempt + 1} attempts - starting without state",
+            reason: inspect(reason))
+        end
     end
 
     {:noreply, state}
-  end
-
-  defp fetch_active_queues do
-    rails_url = Application.get_env(:prostaff_events, :rails_api_url)
-    token = generate_internal_token()
-
-    case Req.get("#{rails_url}/internal/api/inhouse_queues/active",
-           headers: [{"authorization", "Bearer #{token}"}],
-           receive_timeout: 5_000
-         ) do
-      {:ok, %{status: 200, body: %{"queues" => queues}}} -> {:ok, queues}
-      {:ok, resp} -> {:error, "unexpected status #{resp.status}"}
-      {:error, reason} -> {:error, reason}
-    end
-  rescue
-    e -> {:error, Exception.message(e)}
   end
 
   defp start_queue_server(queue_data) do
@@ -68,17 +63,25 @@ defmodule ProstaffEvents.InhouseQueue.Reconciler do
            {ProstaffEvents.InhouseQueue.Server, args}
          ) do
       {:ok, _pid} ->
-        Logger.info("[Reconciler] Started queue=#{args.queue_id} org=#{args.org_id}")
+        Logger.info("[Reconciler] Started queue",
+          queue_id: args.queue_id,
+          org_id: args.org_id,
+          status: args.status
+        )
 
       {:error, {:already_started, _}} ->
         :ok
 
       {:error, reason} ->
-        Logger.warn("[Reconciler] Failed to start queue=#{args.queue_id}: #{inspect(reason)}")
+        Logger.warning("[Reconciler] Failed to start queue",
+          queue_id: args.queue_id,
+          reason: inspect(reason)
+        )
     end
   end
 
   defp parse_deadline(nil), do: DateTime.utc_now()
+
   defp parse_deadline(iso8601) do
     case DateTime.from_iso8601(iso8601) do
       {:ok, dt, _} -> dt
@@ -92,11 +95,5 @@ defmodule ProstaffEvents.InhouseQueue.Reconciler do
     end)
   end
 
-  defp generate_internal_token do
-    secret = Application.get_env(:prostaff_events, :internal_jwt_secret, "")
-    signer = Joken.Signer.create("HS256", secret)
-    claims = %{"type" => "internal", "iss" => "prostaff-events", "iat" => DateTime.to_unix(DateTime.utc_now())}
-    {:ok, token, _} = Joken.encode_and_sign(claims, signer)
-    token
-  end
+  defp rails_client, do: ProstaffEvents.RailsClient.impl()
 end
