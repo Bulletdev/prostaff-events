@@ -8,6 +8,7 @@ defmodule ProstaffEvents.MixProject do
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
+      dialyzer: [plt_file: {:no_warn, "priv/plts/dialyzer.plt"}],
       deps: deps()
     ]
   end

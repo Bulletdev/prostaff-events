@@ -13,10 +13,8 @@
 
 [![Elixir Version](https://img.shields.io/badge/elixir-1.17-4B275F?logo=elixir)](https://elixir-lang.org/)
 [![Phoenix Version](https://img.shields.io/badge/phoenix-1.8-FF6B35?logo=phoenixframework)](https://phoenixframework.org/)
-[![Tests](https://img.shields.io/badge/tests-44%20passing-brightgreen)](/)
-[![Credo](https://img.shields.io/badge/credo-0%20issues-brightgreen)](/)
-[![Sobelow](https://img.shields.io/badge/sobelow-0%20findings-brightgreen)](/)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![CI](https://github.com/bulletdev/prostaff-events/actions/workflows/ci.yml/badge.svg)](https://github.com/bulletdev/prostaff-events/actions/workflows/ci.yml)
+[![License: Proprietary](https://img.shields.io/badge/license-proprietary-lightgrey)](./)
 
 </div>
 
@@ -39,9 +37,9 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  REAL-TIME                                                                  │
-│  [■] Phoenix Channels       — WebSocket delivery for all domain events      │
-│  [■] Redis Pub/Sub          — PSUBSCRIBE prostaff:events:* from Rails API   │
-│  [■] Schema Versioning      — version field validated; unknown ver rejected │
+│  [■] Phoenix Channels      — WebSocket delivery for all domain events       │
+│  [■] Redis Pub/Sub         — PSUBSCRIBE prostaff:events:* from Rails API    │
+│  [■] Schema Versioning     — version validated; unknown rejected, absent ok │
 │                                                                             │
 │  INHOUSE QUEUE                                                              │
 │  [■] InhouseQueue GenServer — One BEAM actor per active queue               │
@@ -91,7 +89,7 @@
 
 ```bash
 cp .env.example .env
-# Edit .env — set REDIS_URL, INTERNAL_JWT_SECRET, SECRET_KEY_BASE
+# Edit .env - set REDIS_PASSWORD, INTERNAL_JWT_SECRET, SECRET_KEY_BASE
 
 docker compose up -d
 
@@ -434,21 +432,21 @@ graph TB
     end
 
     subgraph "Production — Coolify"
-        Traefik["Traefik\nTLS + Let's Encrypt\nevents.prostaff.gg"]
+        Traefik["Traefik — TLS + events.prostaff.gg"]
     end
 
     subgraph "prostaff-events"
-        EP["Phoenix Endpoint\nport 4000"]
-        CH["Phoenix Channels\n(WS)"]
+        EP["Phoenix Endpoint :4000"]
+        CH["Phoenix Channels (WS)"]
         RS["RedisSubscriber"]
     end
 
     subgraph "prostaff-api"
         Rails["Rails API"]
-        SQ["Sidekiq\n(EventPublishJob)"]
+        SQ["Sidekiq (EventPublishJob)"]
     end
 
-    RD[("Redis\ncoolify network")]
+    RD[("Redis — coolify network")]
 
     FE -- "WSS" --> Traefik
     Bot -- "WSS" --> Traefik
@@ -503,7 +501,10 @@ PHOENIX_EVENTS_URL=http://events:4000
 ╔════════════════════════╦══════════╦══════════════════════════════════════════╗
 ║  Variable              ║  Required║  Description                             ║
 ╠════════════════════════╬══════════╬══════════════════════════════════════════╣
-║  REDIS_PASSWORD        ║  yes     ║  Redis password (same as prostaff-api)   ║
+║  REDIS_PASSWORD        ║  yes*    ║  Docker/Coolify: compose builds          ║
+║                        ║          ║  REDIS_URL from this                     ║
+║  REDIS_URL             ║  yes*    ║  Local dev (no Docker): full URL,        ║
+║                        ║          ║  e.g. redis://localhost:6379/0           ║
 ║  INTERNAL_JWT_SECRET   ║  yes     ║  Must match prostaff-api value           ║
 ║  SECRET_KEY_BASE       ║  yes     ║  Phoenix secret (min 64 chars)           ║
 ║  RAILS_API_URL         ║  no      ║  Internal Rails URL (default: api:3000)  ║
@@ -511,6 +512,7 @@ PHOENIX_EVENTS_URL=http://events:4000
 ║  PORT                  ║  no      ║  HTTP port (default: 4000)               ║
 ║  SCRAPER_API_KEY       ║  no      ║  API key for POST /events/notify         ║
 ╚════════════════════════╩══════════╩══════════════════════════════════════════╝
+* Docker/Coolify: set REDIS_PASSWORD. Local dev without Docker: set REDIS_URL.
 ```
 
 Generate a `SECRET_KEY_BASE`:
@@ -526,12 +528,9 @@ mix phx.gen.secret
 ```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  © 2026 ProStaff.gg. All rights reserved.                                    ║
-║                                                                              ║
-║  GNU Affero General Public License v3.0 (AGPLv3)                             ║
+║  Proprietary software — unauthorized use, copy or distribution prohibited.   ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ---
 

@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.17"
+          otp-version: "27"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build/test
+          key: test-${{ runner.os }}-${{ hashFiles('mix.lock') }}
+          restore-keys: test-${{ runner.os }}-
+
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix test
+
+  quality:
+    name: Credo + Sobelow + Dialyzer
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.17"
+          otp-version: "27"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build/dev
+          key: dev-${{ runner.os }}-${{ hashFiles('mix.lock') }}
+          restore-keys: dev-${{ runner.os }}-
+
+      - name: Cache Dialyzer PLT
+        uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: plt-${{ runner.os }}-otp27-elixir1.17-${{ hashFiles('mix.lock') }}
+          restore-keys: plt-${{ runner.os }}-otp27-elixir1.17-
+
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mkdir -p priv/plts
+      - run: mix credo --strict
+      - run: mix sobelow --config
+      - run: mix dialyzer --format github
