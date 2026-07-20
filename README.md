@@ -245,22 +245,31 @@ response: {:error, %{reason: "rate_limited"}} on the channel reply
 
 ## 04 · Setup
 
+> 🚀 **Novo no projeto?** O guia completo de ambiente (mise + IntelliJ Elixir
+> Module SDK + troubleshooting) está em
+> [`docs/onboarding/dev-environment.md`](docs/onboarding/dev-environment.md).
+> Atalho: `./scripts/setup-dev.sh` instala runtimes, deps e compila em um comando.
+
 ### Prerequisites
 
 ```
-[✓] Elixir 1.17+
+[✓] mise (gerencia Erlang/Elixir via .tool-versions)
+[✓] Elixir 1.17 / Erlang 27 (instalados pelo mise)
 [✓] Redis 7+ (shared with Rails API)
 [✓] prostaff-api running (for InhouseQueue.Reconciler)
 ```
 
 ### Installation
 
-**1. Clone and install dependencies:**
+**1. Clone and set up (runtimes + deps + compile):**
 ```bash
 git clone <repository-url>
 cd prostaff-events
-mix deps.get
+./scripts/setup-dev.sh
 ```
+
+> Sem mise? `curl https://mise.run | sh` — depois rode o script acima.
+> Prefere manual? `mise install && mise exec -- mix deps.get`.
 
 **2. Configure environment:**
 ```bash

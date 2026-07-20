@@ -9,3 +9,5 @@ erl_crash.dump
 /config/*.secret.exs
 .env
 /priv/plts/
+/.idea
+*.iml
