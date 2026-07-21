@@ -1,70 +1,70 @@
-# Onboarding — Ambiente de Desenvolvimento
+# Onboarding - Development Environment
 
-Guia para deixar o **prostaff-events** rodando localmente e configurar o
-**IntelliJ IDEA** (Elixir Module SDK). Estimativa: ~10 min.
+Guide to get **prostaff-events** running locally and to configure **IntelliJ IDEA**
+(Elixir Module SDK). Estimated time: ~10 min.
 
 > **TL;DR**
 > ```bash
-> ./scripts/setup-dev.sh          # instala runtimes, deps e compila
-> ./scripts/print-sdk-paths.sh    # mostra os paths p/ colar no IntelliJ
+> ./scripts/setup-dev.sh          # installs runtimes, deps, and compiles
+> ./scripts/print-sdk-paths.sh    # prints the paths to paste into IntelliJ
 > ```
-> Depois configure o SDK no IntelliJ (seção [3](#3--intellij--elixir-module-sdk)).
+> Then configure the SDK in IntelliJ (section [3](#3-intellij-elixir-module-sdk)).
 
 ---
 
-## 1 · Pré-requisitos
+## 1. Prerequisites
 
-| Ferramenta | Versão | Observação |
-|------------|--------|------------|
-| [mise](https://mise.jdx.dev) | recente | gerenciador de versões (Erlang/Elixir/Ruby) |
-| Redis | 7+ | compartilhado com a `prostaff-api` |
-| IntelliJ IDEA | 2024.1+ | com o plugin **intellij-elixir** |
-| Xcode CLT | — | `xcode-select --install` (macOS) |
+| Tool | Version | Notes |
+|------|---------|-------|
+| [mise](https://mise.jdx.dev) | recent | version manager (Erlang/Elixir/Ruby) |
+| Redis | 7+ | shared with `prostaff-api` |
+| IntelliJ IDEA | 2024.1+ | with the **intellij-elixir** plugin |
+| Xcode CLT | - | `xcode-select --install` (macOS) |
 
-As versões de Erlang/Elixir são fixadas em [`.tool-versions`](../../.tool-versions)
-e instaladas automaticamente pelo mise — **não instale manualmente**.
+Erlang/Elixir versions are pinned in [`.tool-versions`](../../.tool-versions) and installed
+automatically by mise. Do not install them manually.
 
-### Instalar o mise (se ainda não tiver)
+### Install mise (if you do not have it yet)
 
 ```bash
 curl https://mise.run | sh
-# adicione ao ~/.zshrc:
+# add to ~/.zshrc:
 echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
 exec zsh
 ```
 
 ---
 
-## 2 · Setup do runtime (terminal)
+## 2. Runtime setup (terminal)
 
-Um comando resolve tudo (idempotente):
+A single command handles everything (idempotent):
 
 ```bash
 ./scripts/setup-dev.sh
 ```
 
-Ele executa:
+It runs:
 
-1. Verifica o `mise` no PATH
-2. `mise install` — baixa **Erlang** e **Elixir** de `.tool-versions`
+1. Checks that `mise` is on the PATH
+2. `mise install` downloads Erlang and Elixir from `.tool-versions`
 3. `mix local.hex` + `mix local.rebar`
 4. `mix deps.get` + `mix compile`
-5. Cria `.env` a partir de `.env.example` (se não existir)
-6. Imprime os paths dos SDKs para o IntelliJ
+5. Creates `.env` from `.env.example` (if missing)
+6. Prints the SDK paths for IntelliJ
 
-> **Por que Erlang pré-compilado?**
-> O script força `erlang.compile=false`, então o mise baixa o binário do OTP
-> em vez de compilar do source. Isso evita ter que instalar `autoconf`,
-> `openssl` e afins via Homebrew.
+> **Why precompiled Erlang?**
+> The script forces `erlang.compile=false`, so mise downloads the OTP binary instead of
+> compiling from source. This avoids having to install `autoconf`, `openssl`, and the like
+> via Homebrew.
 
-Ao final, preencha os segredos no `.env` (veja a Seção 09 do README) e gere o
+At the end, fill in the secrets in `.env` (see Section 09 of the README) and generate the
 `SECRET_KEY_BASE`:
 
 ```bash
 mise exec -- mix phx.gen.secret
 ```
 
-Suba o servidor:
+Start the server:
 
 ```bash
 mise exec -- mix phx.server
@@ -73,90 +73,88 @@ curl http://localhost:4000/health   # {"status":"ok",...}
 
 ---
 
-## 3 · IntelliJ — Elixir Module SDK
+## 3. IntelliJ - Elixir Module SDK
 
-> ⚠️ O plugin **intellij-elixir** precisa de **dois** SDKs: um **Elixir SDK**
-> que referencia internamente um **Erlang SDK**. Com o mise, Elixir e Erlang
-> ficam em pastas **separadas**, então o Erlang **não** é auto-detectado —
-> você precisa criar os dois manualmente. É aqui que a maioria trava.
+> Note: the **intellij-elixir** plugin needs **two** SDKs: an **Elixir SDK** that internally
+> references an **Erlang SDK**. With mise, Elixir and Erlang live in separate directories, so
+> the Erlang SDK is not auto-detected - you must create both manually. This is where most
+> people get stuck.
 
-Pegue os paths exatos:
+Get the exact paths:
 
 ```bash
 ./scripts/print-sdk-paths.sh
 ```
 
-### 3.1 · Instalar o plugin (se necessário)
+### 3.1. Install the plugin (if needed)
 
-`Settings → Plugins → Marketplace` → busque **"Elixir"** (intellij-elixir) →
-Install → reinicie o IDE.
+In `Settings > Plugins > Marketplace`, search for **"Elixir"** (intellij-elixir), install it,
+and restart the IDE.
 
-### 3.2 · Criar o Erlang SDK  ← faça este PRIMEIRO
+### 3.2. Create the Erlang SDK (do this FIRST)
 
-1. `⌘ ;` (Project Structure) → `Platform Settings → SDKs`
-2. `+` → **Erlang SDK**
-3. Cole o **path do Erlang** impresso pelo script → OK
-   → aparece algo como `mise Erlang 27.3.4`
+1. `Cmd ;` (Project Structure), then `Platform Settings > SDKs`
+2. `+`, choose **Erlang SDK**
+3. Paste the **Erlang path** printed by the script and confirm.
+   It shows up as something like `mise Erlang 27.3.4`.
 
-### 3.3 · Criar o Elixir SDK e linkar o Erlang
+### 3.3. Create the Elixir SDK and link the Erlang SDK
 
-1. `+` → **Elixir SDK**
-2. Cole o **path do Elixir** → OK
-3. Selecione o `Elixir SDK` recém-criado e, no campo
-   **"Internal Erlang SDK"**, escolha o `Erlang` do passo anterior
-   → o `classPath` do Elixir SDK passa a incluir os `ebin` do OTP
-   (`crypto`, `kernel`, `ssl`, …)
+1. `+`, choose **Elixir SDK**
+2. Paste the **Elixir path** and confirm.
+3. Select the newly created `Elixir SDK` and, in the **"Internal Erlang SDK"** field, pick the
+   `Erlang` SDK from the previous step. The Elixir SDK `classPath` then includes the OTP `ebin`
+   directories (`crypto`, `kernel`, `ssl`, and so on).
 
-### 3.4 · Atribuir como Project + Module SDK
+### 3.4. Assign it as Project + Module SDK
 
-1. `Project Settings → Project` → **SDK** = o Elixir SDK
-2. `Project Settings → Modules → prostaff_events → Dependencies`
-   → **Module SDK** = `Project SDK` (ou o Elixir SDK direto)
-3. **Apply → OK**
+1. `Project Settings > Project`, set **SDK** to the Elixir SDK.
+2. `Project Settings > Modules > prostaff_events > Dependencies`, set **Module SDK** to
+   `Project SDK` (or the Elixir SDK directly).
+3. **Apply**, then **OK**.
 
-### 3.5 · Validar
+### 3.5. Validate
 
-Ao final, os arquivos do IDE devem refletir:
+The IDE files should now reflect:
 
-- `prostaff_events.iml` →
+- `prostaff_events.iml` with
   `<orderEntry type="jdk" jdkName="..." jdkType="Elixir SDK" />`
-- O Elixir SDK deve ter **os ebins do Erlang** no classPath
-  (`.../erlang/<versão>/lib/*/ebin`).
+- The Elixir SDK should carry the Erlang ebins in its classPath
+  (`.../erlang/<version>/lib/*/ebin`).
 
-Se preferir checar por terminal (com o IDE **fechado** para não perder
-alterações não salvas):
+To check from the terminal instead (with the IDE closed so you do not lose unsaved changes):
 
 ```bash
 JDK=~/Library/Application\ Support/JetBrains/IntelliJIdea*/options/jdk.table.xml
 
-grep -c 'erlang/' $JDK          # > 0  → Erlang linkado no Elixir SDK
+grep -c 'erlang/' $JDK          # > 0 means Erlang is linked into the Elixir SDK
 grep -E 'orderEntry type="(jdk|inheritedJdk)"' prostaff_events.iml
 ```
 
 ---
 
-## 4 · Troubleshooting
+## 4. Troubleshooting
 
-| Sintoma | Causa | Solução |
-|---------|-------|---------|
-| `:crypto`, `:ets`, `:gen_server` aparecem como *unresolved* | Erlang SDK não linkado no Elixir SDK | Refaça a seção [3.3](#33--criar-o-elixir-sdk-e-linkar-o-erlang) — o campo "Internal Erlang SDK" ficou vazio |
-| `+ → Erlang SDK` não aparece na lista | plugin intellij-elixir não instalado/ativo | Seção [3.1](#31--instalar-o-plugin-se-necessário) |
-| Deps (`Phoenix`, `Redix`) *unresolved* nos `import`/`alias` | `deps/` não baixado ou IDE dessincronizado | `./scripts/setup-dev.sh` e depois `File → Reload All from Disk` |
-| `mise install` tenta compilar Erlang e falha (autoconf/openssl) | build via source | garanta `erlang.compile=false` (o script já faz) e rode de novo |
-| `elixir: command not found` no terminal | mise não ativado no shell | `eval "$(mise activate zsh)"` no `~/.zshrc` |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `:crypto`, `:ets`, `:gen_server` show as *unresolved* | Erlang SDK not linked into the Elixir SDK | Redo section [3.3](#33-create-the-elixir-sdk-and-link-the-erlang-sdk); the "Internal Erlang SDK" field was left empty |
+| `Erlang SDK` does not appear in the `+` list | intellij-elixir plugin not installed/active | Section [3.1](#31-install-the-plugin-if-needed) |
+| Deps (`Phoenix`, `Redix`) *unresolved* in `import`/`alias` | `deps/` not fetched or IDE out of sync | `./scripts/setup-dev.sh` then `File > Reload All from Disk` |
+| `mise install` tries to compile Erlang and fails (autoconf/openssl) | source build | ensure `erlang.compile=false` (the script already does this) and rerun |
+| `elixir: command not found` in the terminal | mise not activated in the shell | `eval "$(mise activate zsh)"` in `~/.zshrc` |
 
 ---
 
-## 5 · Referência rápida de comandos
+## 5. Command quick reference
 
 ```bash
-mise exec -- mix phx.server        # sobe o servidor
-mise exec -- mix test              # testes
-mise exec -- mix format            # formata
+mise exec -- mix phx.server        # start the server
+mise exec -- mix test              # tests
+mise exec -- mix format            # format
 mise exec -- mix credo --strict    # lint
-mise exec -- mix dialyzer          # análise estática
-mise exec -- iex -S mix            # REPL com o app carregado
+mise exec -- mix dialyzer          # static analysis
+mise exec -- iex -S mix            # REPL with the app loaded
 ```
 
-> Dica: com o mise ativado no shell (`mise activate`), você pode omitir o
-> `mise exec --` e chamar `mix ...` direto.
+> Tip: with mise activated in the shell (`mise activate`), you can drop the `mise exec --`
+> prefix and call `mix ...` directly.
