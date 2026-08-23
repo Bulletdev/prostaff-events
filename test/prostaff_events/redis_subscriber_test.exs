@@ -1,6 +1,12 @@
 defmodule ProstaffEvents.RedisSubscriberTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
+  # US-08 subiu o ramo nao roteado para warning; sem isto ele polui a saida
+  # dos testes que nao estao olhando log. Falha ainda mostra tudo.
+  @moduletag :capture_log
+
   alias ProstaffEvents.RedisSubscriber
 
   defp event(overrides \\ %{}) do
@@ -104,5 +110,62 @@ defmodule ProstaffEvents.RedisSubscriberTest do
       e = event(%{"version" => 2})
       assert RedisSubscriber.resolve_topics(e) == []
     end
+  end
+
+  describe "motivo do descarte" do
+    test "versao nao suportada loga rejeicao por versao, nao campos ausentes" do
+      log = capture_log(fn -> send_event(event(%{"version" => 99})) end)
+
+      assert log =~ "unsupported version"
+      refute log =~ "missing or invalid field"
+    end
+
+    test "campo obrigatorio ausente loga qual campo faltou" do
+      log = capture_log(fn -> send_event(Map.delete(event(), "user_id")) end)
+
+      assert log =~ "missing or invalid field"
+      assert log =~ "user_id"
+      refute log =~ "unsupported version"
+    end
+
+    test "type nao-string e tratado como campo invalido, sem derrubar o processo" do
+      e = event(%{"type" => 123})
+
+      assert RedisSubscriber.resolve_topics(e) == []
+      assert capture_log(fn -> send_event(e) end) =~ "type"
+    end
+
+    test "nenhum dos logs de descarte imprime o payload" do
+      segredo = "nao-pode-vazar-no-log"
+      pid = start_subscriber()
+
+      for e <- [
+            event(%{"version" => 99, "payload" => %{"email" => segredo}}),
+            Map.delete(event(%{"payload" => %{"email" => segredo}}), "org_id")
+          ] do
+        refute capture_log(fn -> send_event(pid, e) end) =~ segredo
+      end
+    end
+
+    test "tipo sem rota especifica loga em warning, nao em debug" do
+      log = capture_log(fn -> send_event(event(%{"type" => "roster.player_hired"})) end)
+
+      assert log =~ "[warning]"
+      assert log =~ "Unrouted event"
+      assert log =~ "roster.player_hired"
+    end
+  end
+
+  # route_event/1 e privado; o caminho publico e a mensagem do Redix. O
+  # subscriber registra com name: __MODULE__, entao e um por teste.
+  defp start_subscriber, do: start_supervised!({RedisSubscriber, []}, restart: :temporary)
+
+  defp send_event(event), do: send_event(start_subscriber(), event)
+
+  defp send_event(pid, event) do
+    send(pid, {:redix_pubsub, nil, nil, :pmessage, %{payload: Jason.encode!(event)}})
+    # get_state serializa: quando retorna, o handle_info do evento ja terminou.
+    _ = :sys.get_state(pid)
+    :ok
   end
 end
