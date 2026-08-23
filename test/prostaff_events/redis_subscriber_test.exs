@@ -91,5 +91,18 @@ defmodule ProstaffEvents.RedisSubscriberTest do
 
       assert {:event, _} = msg
     end
+
+    test "aceita version inteiro, que e como o Rails serializa o campo" do
+      e = event(%{"version" => 1, "type" => "notification.created"})
+      topics = RedisSubscriber.resolve_topics(e) |> Enum.map(&elem(&1, 0))
+
+      assert "org_events:org-1" in topics
+      assert "notifications:user-1" in topics
+    end
+
+    test "rejeita version inteiro desconhecido, nao so a string" do
+      e = event(%{"version" => 2})
+      assert RedisSubscriber.resolve_topics(e) == []
+    end
   end
 end

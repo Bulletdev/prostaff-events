@@ -63,7 +63,12 @@ defmodule ProstaffEvents.RedisSubscriber do
     end
   end
 
-  @supported_versions ["1"]
+  # Both the integer and the string form are accepted on purpose.
+  # Rails serializes `version` as a JSON number, so Jason.decode/1 hands us the
+  # integer 1. Comparing that against ["1"] never matches, and then
+  # resolve_topics/1 returns [] and the event reaches no topic at all -
+  # a silent drop with no error on either side. Do not narrow this list.
+  @supported_versions [1, "1"]
 
   @doc """
   Pure function: maps an event envelope to a list of {topic, message} pairs.

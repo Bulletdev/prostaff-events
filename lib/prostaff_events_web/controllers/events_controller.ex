@@ -41,7 +41,12 @@ defmodule ProstaffEventsWeb.EventsController do
     Auth.verify_api_key(key)
   end
 
-  @supported_versions ["1"]
+  # Both the integer and the string form are accepted on purpose.
+  # Rails serializes `version` as a JSON number, so Jason.decode/1 hands us the
+  # integer 1. Comparing that against ["1"] never matches, and then
+  # the request is rejected as an unsupported version -
+  # a silent drop with no error on either side. Do not narrow this list.
+  @supported_versions [1, "1"]
 
   defp validate_event(%{"type" => type, "org_id" => org_id} = params)
        when is_binary(type) and is_binary(org_id) do
